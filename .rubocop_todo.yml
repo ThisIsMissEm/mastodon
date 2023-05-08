@@ -220,6 +220,10 @@ Metrics/ModuleLength:
     - 'app/models/concerns/account_interactions.rb'
     - 'app/models/concerns/has_user_settings.rb'
 
+Metrics/ClassLength:
+  Exclude:
+    - 'app/models/admin/status_batch_action.rb'
+
 # Configuration parameters: Max, CountKeywordArgs, MaxOptionalParameters.
 Metrics/ParameterLists:
   Exclude:

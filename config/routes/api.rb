@@ -215,6 +215,12 @@ namespace :api, format: false do
         resource :action, only: [:create], controller: 'account_actions'
       end
 
+      resources :statuses, only: [] do
+        member do
+          post :spoiler_text
+        end
+      end
+
       resources :reports, only: [:index, :update, :show] do
         member do
           post :assign_to_self

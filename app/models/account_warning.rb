@@ -21,6 +21,7 @@ class AccountWarning < ApplicationRecord
     none: 0,
     disable: 1_000,
     mark_statuses_as_sensitive: 1_250,
+    mark_statuses_with_spoiler_text: 1_300,
     delete_statuses: 1_500,
     sensitive: 2_000,
     silence: 3_000,
