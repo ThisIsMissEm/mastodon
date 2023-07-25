@@ -176,9 +176,14 @@ const startServer = async () => {
   const { redisParams, redisUrl, redisPrefix } = redisConfigFromEnv(process.env);
 
   /**
-   * @type {Object.<string, Array.<function(Object<string, any>): void>>}
+   * @typedef MessageHandler
+   * @type {function(Object<string, any>): void}
    */
-  const subs = {};
+
+  /**
+   * @type {Map.<string, Array.<MessageHandler>>}
+   */
+  const redisSubscriptions = new Map();
 
   const redisSubscribeClient = await redisUrlToClient(redisParams, redisUrl);
   const redisClient = await redisUrlToClient(redisParams, redisUrl);
@@ -208,7 +213,7 @@ const startServer = async () => {
    * @param {string} channel
    */
   const onRedisMessage = (message, channel) => {
-    const callbacks = subs[channel];
+    const callbacks = redisSubscriptions.get(channel);
 
     log.silly(`New message on channel ${channel}`);
 
@@ -224,38 +229,42 @@ const startServer = async () => {
 
   /**
    * @param {string} channel
-   * @param {function(string): void} callback
+   * @param {MessageHandler} callback
    */
   const subscribe = (channel, callback) => {
     log.silly(`Adding listener for ${channel}`);
 
-    subs[channel] = subs[channel] || [];
+    if (redisSubscriptions.has(channel)) {
+      const existingCallbacks = redisSubscriptions.get(channel) ?? [];
+      redisSubscriptions.set(channel, existingCallbacks.concat(callback));
+    } else {
+      redisSubscriptions.set(channel, [callback]);
 
-    if (subs[channel].length === 0) {
       log.verbose(`Subscribe ${channel}`);
       redisSubscribeClient.subscribe(channel, onRedisMessage);
     }
-
-    subs[channel].push(callback);
   };
 
   /**
    * @param {string} channel
-   * @param {function(Object<string, any>): void} callback
+   * @param {MessageHandler} callback
    */
   const unsubscribe = (channel, callback) => {
     log.silly(`Removing listener for ${channel}`);
 
-    if (!subs[channel]) {
+    if (!redisSubscriptions.has(channel)) {
       return;
     }
 
-    subs[channel] = subs[channel].filter(item => item !== callback);
+    const existingCallbacks = redisSubscriptions.get(channel) ?? [];
+    const newCallbacks = existingCallbacks.filter(item => item !== callback);
+    redisSubscriptions.set(channel, newCallbacks);
 
-    if (subs[channel].length === 0) {
+    if (newCallbacks.length === 0) {
       log.verbose(`Unsubscribe ${channel}`);
       redisSubscribeClient.unsubscribe(channel);
-      delete subs[channel];
+
+      redisSubscriptions.delete(channel)
     }
   };
 
@@ -859,7 +868,7 @@ const startServer = async () => {
     res.write(`connected_clients ${count}.0\n`);
     res.write('# TYPE connected_channels gauge\n');
     res.write('# HELP connected_channels The number of Redis channels the streaming server is subscribed to\n');
-    res.write(`connected_channels ${Object.keys(subs).length}.0\n`);
+    res.write(`connected_channels ${Object.keys(redisSubscriptions).length}.0\n`);
     res.write('# TYPE pg_pool_total_connections gauge\n');
     res.write('# HELP pg_pool_total_connections The total number of clients existing within the pool\n');
     res.write(`pg_pool_total_connections ${pgPool.totalCount}.0\n`);
@@ -1071,7 +1080,7 @@ const startServer = async () => {
    * @typedef WebSocketSession
    * @property {any} socket
    * @property {any} request
-   * @property {Object.<string, { listener: function(string): void, stopHeartbeat: function(): void }>} subscriptions
+   * @property {Object.<string, { listener: MessageHandler, stopHeartbeat: function(): void }>} subscriptions
    */
 
   /**
