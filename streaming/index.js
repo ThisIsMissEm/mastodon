@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const http = require('http');
+const process = require('process');
 const url = require('url');
 
 const dotenv = require('dotenv');
@@ -1386,13 +1387,21 @@ const startServer = async () => {
   };
 
   wss.on('connection', (ws, req) => {
-    const location = url.parse(req.url, true);
+    log.silly('socket', 'opening connection');
 
+    // Setup request properties:
     req.requestId = uuid.v4();
     req.remoteAddress = ws._socket.remoteAddress;
 
-    ws.isAlive = true;
+    // Handle req.url being undefined, which the types say to expect but seems
+    // like a really odd condition that should never happen.
+    if (!req.url) {
+      log.error('socket', 'Unexpected missing req.url for websocket connection, closing connection');
+      ws.close(1011);
+      return;
+    }
 
+    ws.isAlive = true;
     ws.on('pong', () => {
       ws.isAlive = true;
     });
@@ -1408,7 +1417,9 @@ const startServer = async () => {
       subscriptions: {},
     };
 
-    const onEnd = () => {
+    const onEnd = (code, _reason) => {
+      log.silly('socket: closing', code);
+
       const subscriptions = Object.keys(session.subscriptions);
 
       subscriptions.forEach(channelIds => {
@@ -1424,7 +1435,11 @@ const startServer = async () => {
     };
 
     ws.on('close', onEnd);
-    ws.on('error', onEnd);
+
+    // Note: after the `error` event is emitted, `close` is then emitted.
+    ws.on('error', (err) => {
+      log.error('socket', err);
+    });
 
     ws.on('message', (data, isBinary) => {
       if (isBinary) {
@@ -1451,12 +1466,21 @@ const startServer = async () => {
 
     subscribeWebsocketToSystemChannel(session);
 
-    if (location.query.stream) {
-      subscribeWebsocketToChannel(session, firstParam(location.query.stream), location.query);
+    const location = new URL(req.url, process.env.STREAMING_API_BASE_URL ?? 'ws://localhost:4000');
+    const streamFromUrlParams = location.searchParams.get('stream');
+
+    if (streamFromUrlParams) {
+      const streamParams = {
+        tag: location.searchParams.get('tag') ?? undefined,
+        list: location.searchParams.get('list') ?? undefined,
+        only_media: location.searchParams.get('only_media') ?? undefined
+      };
+
+      subscribeWebsocketToChannel(session, firstParam(streamFromUrlParams), streamParams);
     }
   });
 
-  setInterval(() => {
+  const interval = setInterval(() => {
     wss.clients.forEach(ws => {
       if (ws.isAlive === false) {
         ws.terminate();
@@ -1466,26 +1490,64 @@ const startServer = async () => {
       ws.isAlive = false;
       ws.ping('', false);
     });
-  }, 30000);
+  }, 1000);
 
-  attachServerWithConfig(server, address => {
-    log.warn(`Streaming API now listening on ${address}`);
+  wss.on('close', function onWssClose() {
+    clearInterval(interval);
   });
 
+  attachServerWithConfig(server, address => {
+    log.warn(`Streaming API now listening on ${address}, PID: ${process.pid}`);
+  });
+
+  let isExiting = false;
   const onExit = () => {
-    server.close();
-    process.exit(0);
+    if (isExiting) return;
+
+    isExiting = true;
+    log.info('Received exit signal, gracefully shutting down...');
+
+    server.close((err) => {
+      if (err) {
+        log.error(err);
+        process.exit(1);
+        return;
+      }
+
+      log.info('closing database & redis connections...');
+      Promise.allSettled([
+        pgPool.end(),
+        redisClient.quit(),
+        redisSubscribeClient.quit()
+      ]).then(() => {
+        log.info("Closed all database & redis connections");
+        process.exit(0);
+      }).catch((closeError) => {
+        log.error("Error closing database or redis connections", closeError);
+        process.exit(1);
+      })
+    });
+
+    log.info("Closing open websocket connections");
+    wss.clients.forEach(ws => {
+      // Status code 1001: indicates that an endpoint is "going away", such as
+      // a server going down or a browser having navigated away from a page.
+      ws.close(1001);
+    });
+    log.info("Closing open eventsource connections");
+    server.closeAllConnections();
   };
 
   const onError = (err) => {
-    log.error(err);
-    server.close();
-    process.exit(0);
+    log.error('Caught unhandled error, exiting...', err);
+    server.close(() => {
+      log.info('Server closed due to error');
+      process.exit(1);
+    });
   };
 
   process.on('SIGINT', onExit);
   process.on('SIGTERM', onExit);
-  process.on('exit', onExit);
   process.on('uncaughtException', onError);
 };
 
