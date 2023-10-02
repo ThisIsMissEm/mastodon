@@ -1467,8 +1467,19 @@ const startServer = async () => {
     subscribeWebsocketToSystemChannel(session);
 
     const location = new URL(req.url, process.env.STREAMING_API_BASE_URL ?? 'ws://localhost:4000');
-    const streamFromUrlParams = location.searchParams.get('stream');
 
+    // Close websocket connections that aren't to the streaming endpoints
+    //
+    // Whilst usually an upstream like nginx will ensure only the streaming
+    // endpoints reach the streaming server, this is just an extra layer of
+    // defense just in case of a misconfiguration.
+    if (!location.pathname.startsWith('/api/v1/streaming')) {
+      log.warn('socket', 'Received websocket connection to non-streaming path, closing connection');
+      ws.close(1011, 'Invalid endpoint');
+      return;
+    }
+
+    const streamFromUrlParams = location.searchParams.get('stream');
     if (streamFromUrlParams) {
       const streamParams = {
         tag: location.searchParams.get('tag') ?? undefined,
@@ -1477,6 +1488,15 @@ const startServer = async () => {
       };
 
       subscribeWebsocketToChannel(session, firstParam(streamFromUrlParams), streamParams);
+
+    // Technically according to the published documentation, the `?stream=`
+    // parameter is required, but previously the server accepted connections
+    // without this parameter, the following else statement would therefore be a
+    // breaking-change:
+    //
+    // } else {
+    //   log.warn('socket', 'Missing required "stream" parameter, closing connection');
+    //   ws.close(1000, 'Missing required "stream" query parameter, closing connection');
     }
   });
 
