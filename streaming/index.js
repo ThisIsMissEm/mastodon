@@ -16,6 +16,9 @@ const metrics = require('prom-client');
 const uuid = require('uuid');
 const WebSocket = require('ws');
 
+const MastodonWebsocket = require("./src/websocket.js");
+const EventStream = require("./src/eventstream.js");
+
 const environment = process.env.NODE_ENV || 'development';
 
 // Correctly detect and load .env or .env.production file based on environment:
@@ -1022,16 +1025,16 @@ const startServer = async () => {
    * @returns {function(string[], SubscriptionListener): void}
    */
 
-  const streamHttpEnd = (req, closeHandler = undefined) => (ids, listener) => {
-    req.on('close', () => {
-      ids.forEach(id => {
-        unsubscribe(id, listener);
-      });
-
-      if (closeHandler) {
-        closeHandler();
-      }
+  const streamHttpEnd = (ids, listener, closeHandler) => {
+    // req.on('close', () => {
+    ids.forEach(id => {
+      unsubscribe(id, listener);
     });
+
+    if (closeHandler) {
+      closeHandler();
+    }
+    // });
   };
 
   /**
@@ -1073,18 +1076,47 @@ const startServer = async () => {
   api.use(errorMiddleware);
 
   api.get('/api/v1/streaming/*', (req, res) => {
-    channelNameToIds(req, channelNameFromPath(req), req.query).then(({ channelIds, options }) => {
-      const onSend = streamToHttp(req, res);
-      const onEnd = streamHttpEnd(req, subscriptionHeartbeat(channelIds));
+    const channelName = channelNameFromPath(req);
 
-      streamFrom(channelIds, req, onSend, onEnd, 'eventsource', options.needsFiltering);
+    if (!channelName) {
+      return httpNotFound(res);
+    }
+
+    channelNameToIds(req, channelName, req.query).then(({ channelIds, options }) => {
+      const sse = new EventStream(req, res);
+      // const onSend = streamToHttp(req, res);
+
+      const listener = streamFrom(channelIds, req, sse.send, undefined, 'eventsource', options.needsFiltering);
+
+      sse.on('close', () => {
+        log.verbose(req.requestId, `Ending stream for ${req.accountId}`);
+        // We decrement these counters here instead of in streamHttpEnd as in that
+        // method we don't have knowledge of the channel names
+        connectedClients.labels({ type: 'eventsource' }).dec();
+        // In theory we'll always have a channel name, but channelNameFromPath can return undefined:
+        if (typeof channelName === 'string') {
+          connectedChannels.labels({ type: 'eventsource', channel: channelName }).dec();
+        }
+
+        streamHttpEnd(channelIds, listener, subscriptionHeartbeat(channelIds));
+      });
     }).catch(err => {
       log.verbose(req.requestId, 'Subscription error:', err.toString());
-      httpNotFound(res);
+      log.error(err, err.stack);
     });
   });
 
-  const wss = new WebSocket.Server({ server, verifyClient: wsVerifyClient });
+  const wss = new WebSocket.Server({
+    server,
+    WebSocket: MastodonWebsocket,
+    verifyClient: wsVerifyClient
+  });
+
+  setInterval(() => {
+    wss.clients.forEach(ws => {
+      ws.checkLiveliness();
+    });
+  }, 30000);
 
   /**
    * @typedef StreamParams
@@ -1399,12 +1431,6 @@ const startServer = async () => {
     req.requestId = uuid.v4();
     req.remoteAddress = ws._socket.remoteAddress;
 
-    // Setup connection keep-alive state:
-    ws.isAlive = true;
-    ws.on('pong', () => {
-      ws.isAlive = true;
-    });
-
     /**
      * @type {WebSocketSession}
      */
@@ -1469,17 +1495,7 @@ const startServer = async () => {
     }
   });
 
-  setInterval(() => {
-    wss.clients.forEach(ws => {
-      if (ws.isAlive === false) {
-        ws.terminate();
-        return;
-      }
 
-      ws.isAlive = false;
-      ws.ping('', false);
-    });
-  }, 30000);
 
   attachServerWithConfig(server, address => {
     log.warn(`Streaming API now listening on ${address}`);
