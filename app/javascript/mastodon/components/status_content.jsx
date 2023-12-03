@@ -75,7 +75,9 @@ class StatusContent extends PureComponent {
 
   static propTypes = {
     status: ImmutablePropTypes.map.isRequired,
+    reblogStatus: ImmutablePropTypes.map,
     statusContent: PropTypes.string,
+    hasSpoilerText: PropTypes.bool,
     expanded: PropTypes.bool,
     onExpandedToggle: PropTypes.func,
     onTranslate: PropTypes.func,
@@ -239,8 +241,19 @@ class StatusContent extends PureComponent {
     this.node = c;
   };
 
+  getSpoilerContent(status) {
+    return { __html: status.getIn(['translation', 'spoilerHtml']) || status.get('spoilerHtml') };
+  }
+
   render () {
-    const { status, intl, statusContent } = this.props;
+    const { status, reblogStatus, hasSpoilerText, intl, statusContent } = this.props;
+
+    let spoilerContent = this.getSpoilerContent(status);
+    let spoilerBy = null;
+    if (reblogStatus && reblogStatus.get('spoiler_text').length > 0 && status.get('spoiler_text') !== reblogStatus.get('spoiler_text')) {
+      spoilerContent = this.getSpoilerContent(reblogStatus);
+      spoilerBy = <>(by @<span>{reblogStatus.get('account').get('username')})</span></>;
+    }
 
     const hidden = this.props.onExpandedToggle ? !this.props.expanded : this.state.hidden;
     const renderReadMore = this.props.onClick && status.get('collapsed');
@@ -249,11 +262,11 @@ class StatusContent extends PureComponent {
     const renderTranslate = this.props.onTranslate && this.context.identity.signedIn && ['public', 'unlisted'].includes(status.get('visibility')) && status.get('search_index').trim().length > 0 && targetLanguages?.includes(contentLocale);
 
     const content = { __html: statusContent ?? getStatusContent(status) };
-    const spoilerContent = { __html: status.getIn(['translation', 'spoilerHtml']) || status.get('spoilerHtml') };
+
     const language = status.getIn(['translation', 'language']) || status.get('language');
     const classNames = classnames('status__content', {
       'status__content--with-action': this.props.onClick && this.props.history,
-      'status__content--with-spoiler': status.get('spoiler_text').length > 0,
+      'status__content--with-spoiler': hasSpoilerText,
       'status__content--collapsed': renderReadMore,
     });
 
@@ -271,7 +284,7 @@ class StatusContent extends PureComponent {
       <PollContainer pollId={status.get('poll')} lang={language} />
     );
 
-    if (status.get('spoiler_text').length > 0) {
+    if (hasSpoilerText) {
       let mentionsPlaceholder = '';
 
       const mentionLinks = status.get('mentions').map(item => (
@@ -290,6 +303,8 @@ class StatusContent extends PureComponent {
         <div className={classNames} ref={this.setRef} tabIndex={0} onMouseDown={this.handleMouseDown} onMouseUp={this.handleMouseUp} onMouseEnter={this.handleMouseEnter} onMouseLeave={this.handleMouseLeave}>
           <p style={{ marginBottom: hidden && status.get('mentions').isEmpty() ? '0px' : null }}>
             <span dangerouslySetInnerHTML={spoilerContent} className='translate' lang={language} />
+            {' '}
+            <span>{spoilerBy}</span>
             {' '}
             <button type='button' className={`status__content__spoiler-link ${hidden ? 'status__content__spoiler-link--show-more' : 'status__content__spoiler-link--show-less'}`} onClick={this.handleSpoilerClick} aria-expanded={!hidden}>{toggleText}</button>
           </p>

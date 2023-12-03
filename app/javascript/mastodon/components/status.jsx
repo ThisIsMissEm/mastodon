@@ -183,7 +183,7 @@ class Status extends ImmutablePureComponent {
   };
 
   handleExpandedToggle = () => {
-    this.props.onToggleHidden(this._properStatus());
+    this.props.onToggleHidden(this.props.status);
   };
 
   handleCollapsedToggle = isCollapsed => {
@@ -351,10 +351,14 @@ class Status extends ImmutablePureComponent {
     const { intl, hidden, featured, unread, showThread, scrollKey, pictureInPicture, previousId, nextInReplyToId, rootId } = this.props;
 
     let { status, account, ...other } = this.props;
+    let reblogStatus = null;
 
     if (status === null) {
       return null;
     }
+
+    const isReblog = status.get('reblog', null) !== null && typeof status.get('reblog') === 'object';
+    const hasSpoilerText = (isReblog ? (status.get('spoiler_text').length > 0 || status.get('reblog').get('spoiler_text').length > 0) : status.get('spoiler_text').length > 0) === true;
 
     const handlers = this.props.muted ? {} : {
       reply: this.handleHotkeyReply,
@@ -414,7 +418,7 @@ class Status extends ImmutablePureComponent {
           <FormattedMessage id='status.pinned' defaultMessage='Pinned post' />
         </div>
       );
-    } else if (status.get('reblog', null) !== null && typeof status.get('reblog') === 'object') {
+    } else if (isReblog) {
       const display_name_html = { __html: status.getIn(['account', 'display_name_html']) };
 
       prepend = (
@@ -427,6 +431,7 @@ class Status extends ImmutablePureComponent {
       rebloggedByText = intl.formatMessage({ id: 'status.reblogged_by', defaultMessage: '{name} boosted' }, { name: status.getIn(['account', 'acct']) });
 
       account = status.get('account');
+      reblogStatus = status;
       status  = status.get('reblog');
     } else if (status.get('visibility') === 'direct') {
       prepend = (
@@ -522,7 +527,7 @@ class Status extends ImmutablePureComponent {
           </Bundle>
         );
       }
-    } else if (status.get('spoiler_text').length === 0 && status.get('card')) {
+    } else if (!hasSpoilerText && status.get('card')) {
       media = (
         <Card
           onOpenMedia={this.handleOpenMedia}
@@ -540,7 +545,7 @@ class Status extends ImmutablePureComponent {
     }
 
     const {statusContentProps, hashtagBar} = getHashtagBarForStatus(status);
-    const expanded = !status.get('hidden') || status.get('spoiler_text').length === 0;
+    const expanded = !(isReblog ? reblogStatus.get('hidden') : status.get('hidden')) || !hasSpoilerText;
 
     return (
       <HotKeys handlers={handlers}>
@@ -568,6 +573,8 @@ class Status extends ImmutablePureComponent {
 
             <StatusContent
               status={status}
+              reblogStatus={reblogStatus}
+              hasSpoilerText={hasSpoilerText}
               onClick={this.handleClick}
               expanded={expanded}
               onExpandedToggle={this.handleExpandedToggle}

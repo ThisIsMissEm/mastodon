@@ -28,7 +28,9 @@ export function normalizeStatus(status, normalOldStatus) {
   const normalStatus   = { ...status };
   normalStatus.account = status.account.id;
 
-  if (status.reblog && status.reblog.id) {
+  const isReblog = status.reblog && status.reblog.id;
+
+  if (isReblog) {
     normalStatus.reblog = status.reblog.id;
   }
 
@@ -56,11 +58,12 @@ export function normalizeStatus(status, normalOldStatus) {
   } else {
     // If the status has a CW but no contents, treat the CW as if it were the
     // status' contents, to avoid having a CW toggle with seemingly no effect.
-    if (normalStatus.spoiler_text && !normalStatus.content) {
+    if (normalStatus.spoiler_text && !normalStatus.content && !isReblog) {
       normalStatus.content = normalStatus.spoiler_text;
       normalStatus.spoiler_text = '';
     }
 
+    // const spoilerText   = (isReblog ? normalStatus.spoiler_text || normalStatus.reblog.spoiler_text : normalStatus.spoiler_text) || '';
     const spoilerText   = normalStatus.spoiler_text || '';
     const searchContent = ([spoilerText, status.content].concat((status.poll && status.poll.options) ? status.poll.options.map(option => option.title) : [])).concat(status.media_attachments.map(att => att.description)).join('\n\n').replace(/<br\s*\/?>/g, '\n').replace(/<\/p><p>/g, '\n\n');
     const emojiMap      = makeEmojiMap(normalStatus.emojis);

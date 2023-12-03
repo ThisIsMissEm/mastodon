@@ -12,21 +12,21 @@ class ReblogService < BaseService
   # @option [Boolean] :with_rate_limit
   # @return [Status]
   def call(account, reblogged_status, options = {})
-    reblogged_status = reblogged_status.reblog if reblogged_status.reblog?
+    @account = account
+    @reblogged_status = reblogged_status
+    @options = options
 
-    authorize_with account, reblogged_status, :reblog?
+    @reblogged_status = @reblogged_status.reblog if @reblogged_status.reblog?
 
-    reblog = account.statuses.find_by(reblog: reblogged_status)
+    authorize_with @account, @reblogged_status, :reblog?
+
+    reblog = account.statuses.find_by(reblog: @reblogged_status)
 
     return reblog unless reblog.nil?
 
-    visibility = if reblogged_status.hidden?
-                   reblogged_status.visibility
-                 else
-                   options[:visibility] || account.user&.setting_default_privacy
-                 end
+    preprocess_attributes!
 
-    reblog = account.statuses.create!(reblog: reblogged_status, text: '', visibility: visibility, rate_limit: options[:with_rate_limit])
+    reblog = account.statuses.create!(reblog_attributes)
 
     Trends.register!(reblog)
     DistributionWorker.perform_async(reblog.id)
@@ -39,6 +39,37 @@ class ReblogService < BaseService
   end
 
   private
+
+  def preprocess_attributes!
+    @spoiler_text = if @reblogged_status.spoiler_text.present?
+                      (@options[:spoiler_text].presence || @reblogged_status.spoiler_text)
+                    else
+                      @options[:spoiler_text] || ''
+                    end
+
+    @sensitive = if @reblogged_status.sensitive?
+                   @reblogged_status.sensitive
+                 else
+                   (@options[:sensitive].nil? ? @account.user&.setting_default_sensitive : @options[:sensitive]) || @spoiler_text.present?
+                 end
+
+    @visibility = if @reblogged_status.hidden?
+                    @reblogged_status.visibility
+                  else
+                    @options[:visibility] || @account.user&.setting_default_privacy
+                  end
+  end
+
+  def reblog_attributes
+    {
+      reblog: @reblogged_status,
+      text: '',
+      visibility: @visibility,
+      sensitive: @sensitive,
+      spoiler_text: @spoiler_text,
+      rate_limit: @options[:with_rate_limit],
+    }
+  end
 
   def create_notification(reblog)
     reblogged_status = reblog.reblog
