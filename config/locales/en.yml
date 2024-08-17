@@ -907,6 +907,10 @@ en:
     trends:
       allow: Allow
       approved: Approved
+      authors:
+        description_html: These are accounts which have previously been allowed or disallowed to trend on your server.
+        no_author_selected: No authors were changed as none were selected
+        title: Trending Authors
       confirm_allow: Are you sure you want to allow selected tags?
       confirm_disallow: Are you sure you want to disallow selected tags?
       disallow: Disallow

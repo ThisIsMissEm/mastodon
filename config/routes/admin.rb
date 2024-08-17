@@ -184,6 +184,12 @@ namespace :admin do
       end
     end
 
+    resources :authors, only: [:index] do
+      collection do
+        post :batch
+      end
+    end
+
     namespace :links do
       resources :preview_card_providers, only: [:index], path: :publishers do
         collection do
