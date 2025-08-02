@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+# These helpers are only used in the admin panel. The `media/:medium_id/player`
+# route served by MediaController does not use this helper.
 module MediaComponentHelper
   def render_video_component(status, **)
     video = status.ordered_media_attachments.first
@@ -57,6 +59,20 @@ module MediaComponentHelper
     react_component :media_gallery, component_params do
       render partial: 'statuses/attachment_list', locals: { attachments: status.ordered_media_attachments }
     end
+  end
+
+  def render_poll_component(status, **)
+    component_params = {
+      poll: ActiveModelSerializers::SerializableResource.new(
+        status.poll,
+        serializer: REST::PollSerializer,
+        scope: nil,
+        scope_name: :current_user,
+        include_results: true
+      ),
+    }
+
+    react_admin_component :poll, component_params
   end
 
   private
