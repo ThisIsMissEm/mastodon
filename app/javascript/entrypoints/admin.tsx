@@ -390,9 +390,15 @@ ready(() => {
         throw new Error(`Modal not found on page: ${modalId}`);
       }
 
+      const modalCloseButton = modal.querySelector('.dialog-header__close');
+
       trigger.addEventListener('click', () => {
         modal.showModal();
         document.body.style.overflow = 'hidden';
+      });
+
+      modalCloseButton?.addEventListener('click', () => {
+        modal.close();
       });
 
       modal.addEventListener('close', () => {

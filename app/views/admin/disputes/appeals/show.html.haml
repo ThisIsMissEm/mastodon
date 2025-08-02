@@ -54,7 +54,7 @@
       - if @strike.report && can?(:show, @strike.report)
         = link_to t('admin.disputes.strike.view_report'), admin_report_path(@strike.report), class: 'button', target: '_blank', rel: 'noopener'
       - if @strike.status_ids.present? && !@strike.status_ids.empty?
-        .button{ 'data-modal': dom_id(@strike, 'modal') } View statuses
+        %button.button{ 'data-modal': dom_id(@strike, 'modal') } View statuses
 
       = link_to t('admin.disputes.strike.view_account'), admin_account_path(@strike.account_id), class: 'button', target: '_blank', rel: 'noopener' if can?(:show, @strike.account)
 
@@ -82,6 +82,10 @@
 
 - if @strike.status_ids.present? && !@strike.status_ids.empty?
   %dialog{ closedby: 'any', 'data-modal-id': dom_id(@strike, 'modal') }
-    %h3= t('user_mailer.warning.statuses')
-    .strike-statuses
-      = render partial: 'admin/shared/status', collection: @strike.statuses.includes(:application, :media_attachments), locals: { show_author: true }
+    .dialog-header
+      %h3= t('user_mailer.warning.statuses')
+      %button.icon-button.dialog-header__close{ autofocus: true }
+        = material_symbol 'close'
+    .dialog-contents
+      .strike-statuses
+        = render partial: 'admin/shared/status', collection: @strike.statuses.includes(:application, :media_attachments), locals: { show_author: true }
