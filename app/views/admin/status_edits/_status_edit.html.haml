@@ -8,4 +8,4 @@
       ·
       %time.formatted{ datetime: status_edit.created_at.iso8601, title: l(status_edit.created_at) }= l(status_edit.created_at)
 
-    = render partial: 'admin/shared/status', locals: { status: status_edit, show_author: false, show_edited_at: false }
+    = render partial: 'admin/shared/status', locals: { status: status_edit, is_edit: true, show_author: false, show_edited_at: false }
