@@ -1,0 +1,22 @@
+/# locals: (preview_card:, sensitive: false)
+
+= link_to preview_card.url, class: 'status-card expanded', target: '_blank', rel: 'noopener' do
+  .status-card__image
+    - if sensitive
+      %canvas.status-card__image-preview{ 'data-blurhash': preview_card.blurhash, width: 32, height: 32 }
+    = image_tag preview_card.image.url, alt: '', class: 'status-card__image-image'
+  .status-card__content{ dir: 'auto' }
+    %span.status-card__host
+      %span
+        = preview_card.provider_name
+      - if preview_card.published_at
+        ·
+        %time.relative-formatted{ datetime: preview_card.published_at.iso8601, title: l(preview_card.published_at) }= l(preview_card.published_at)
+    %strong.status-card__title{ title: preview_card.title }
+      = preview_card.title
+    - if preview_card.author_name.present?
+      %span.status-card__author
+        = t('link_preview.author_html', name: content_tag(:strong, preview_card.author_name))
+    - else
+      %span.status-card__description
+        = preview_card.description

@@ -1562,6 +1562,8 @@ en:
       expires_at: Expires
       uses: Uses
     title: Invite people
+  link_preview:
+    author_html: "By %{name}"
   lists:
     errors:
       limit: You have reached the maximum number of lists
@@ -1700,6 +1702,7 @@ en:
     prev: Prev
     truncate: "&hellip;"
   polls:
+    vote: Vote
     errors:
       already_voted: You have already voted on this poll
       duplicate_options: contain duplicate items
