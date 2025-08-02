@@ -395,6 +395,16 @@ en:
       appeals:
         empty: No appeals found.
         title: Appeals
+      appeal:
+        title: "Appeal Requested"
+      strike:
+        action_taken_by_html: "Action taken by %{username}"
+        appeal_title: "Appeal Message"
+        title: "%{action} on %{date}"
+        report_reason: "Report reason:"
+        view_account: View account
+        view_report: View related report
+        warning_title: "Message sent to %{username}"
     domain_allows:
       add_new: Allow federation with domain
       created_msg: Domain has been successfully allowed for federation

@@ -10,6 +10,11 @@ class Admin::Disputes::AppealsController < Admin::BaseController
     @appeals = filtered_appeals.page(params[:page])
   end
 
+  def show
+    authorize @appeal, :show?
+    @strike = @appeal.strike
+  end
+
   def approve
     authorize @appeal, :approve?
     log_action :approve, @appeal

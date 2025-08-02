@@ -3,4 +3,4 @@
 
 %p= t('disputes.strikes.description_html', instance: Rails.configuration.x.local_domain)
 
-= render partial: 'auth/registrations/account_warning', collection: @strikes
+= render partial: 'shared/account_warning', collection: @strikes

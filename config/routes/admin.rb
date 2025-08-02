@@ -221,7 +221,7 @@ namespace :admin do
   end
 
   namespace :disputes do
-    resources :appeals, only: [:index] do
+    resources :appeals, only: [:index, :show] do
       member do
         post :approve
         post :reject

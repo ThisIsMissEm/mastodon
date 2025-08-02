@@ -376,6 +376,29 @@ ready(() => {
         ctx?.putImageData(imageData, 0, 0);
       }
     });
+
+  document
+    .querySelectorAll<HTMLLinkElement | HTMLButtonElement>('[data-modal]')
+    .forEach((trigger) => {
+      const modalId = trigger.dataset.modal;
+      const modal =
+        modalId &&
+        document.querySelector<HTMLDialogElement>(
+          `[data-modal-id="${modalId}"]`,
+        );
+      if (!modalId || !modal) {
+        throw new Error(`Modal not found on page: ${modalId}`);
+      }
+
+      trigger.addEventListener('click', () => {
+        modal.showModal();
+        document.body.style.overflow = 'hidden';
+      });
+
+      modal.addEventListener('close', () => {
+        document.body.style.overflow = '';
+      });
+    });
 }).catch((reason: unknown) => {
   throw reason;
 });

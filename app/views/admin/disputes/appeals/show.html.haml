@@ -1,0 +1,87 @@
+- content_for :page_title do
+  = t('admin.disputes.appeal.title', username: @strike.target_account.username)
+
+-# - content_for :heading_actions do
+   - unless @strike.overruled?
+     = link_to t('disputes.strikes.approve_appeal'), approve_admin_disputes_appeal_path(@appeal), method: :post, class: 'button' if can?(:approve, @appeal)
+     = link_to t('disputes.strikes.reject_appeal'), reject_admin_disputes_appeal_path(@appeal), method: :post, class: 'button button--destructive' if can?(:reject, @appeal)
+
+- if @strike.overruled?
+  %p.hint
+    %span.positive-hint
+      = material_symbol 'check'
+      &nbsp;
+      = t 'disputes.strikes.appeal_approved'
+
+- elsif @appeal.persisted? && @appeal.rejected?
+  %p.hint
+    %span.negative-hint
+      = material_symbol 'close'
+      &nbsp;
+      = t 'disputes.strikes.appeal_rejected'
+
+.strike-entry
+  .strike-entry__header
+    .strike-entry__avatar
+      .indicator-icon{ class: @strike.overruled? ? 'success' : 'failure' }
+        = material_symbol 'warning'
+    .strike-entry__content
+      %h2.strike-entry__title
+        = t 'admin.disputes.strike.title',
+            action: t(@strike.action, scope: 'disputes.strikes.title_actions'),
+            date: l(@strike.created_at.to_date)
+      %p
+        = t 'admin.disputes.strike.action_taken_by_html', username: link_to(@strike.account.username, can?(:show, @strike.account) ? admin_account_path(@strike.account_id) : short_account_url(@strike.account))
+  .strike-entry__body
+    %p
+      %strong= t('admin.disputes.strike.warning_title', username: @strike.target_account.username)
+    - unless @strike.none_action?
+      %p= t "user_mailer.warning.explanation.#{@strike.action}", instance: Rails.configuration.x.local_domain
+    - if @strike.text.present?
+      = linkify(@strike.text)
+    - if @strike.report
+      %p
+        %strong= t('admin.disputes.strike.report_reason')
+      %p
+        = t("user_mailer.warning.categories.#{@strike.report.category}")
+
+      - if @strike.report.violation? && @strike.report.rule_ids.present?
+        %ul.strike-entry__body__rules
+          - @strike.report.rules.each do |rule|
+            %li
+              %span.strike-entry__body__rules__text= rule.text
+    .strike-actions
+      - if @strike.report && can?(:show, @strike.report)
+        = link_to t('admin.disputes.strike.view_report'), admin_report_path(@strike.report), class: 'button', target: '_blank', rel: 'noopener'
+      - if @strike.status_ids.present? && !@strike.status_ids.empty?
+        .button{ 'data-modal': dom_id(@strike, 'modal') } View statuses
+
+      = link_to t('admin.disputes.strike.view_account'), admin_account_path(@strike.account_id), class: 'button', target: '_blank', rel: 'noopener' if can?(:show, @strike.account)
+
+%hr.spacer
+
+%h3= t('admin.disputes.strike.appeal_title')
+
+.report-notes
+  .report-notes__item
+    = image_tag @appeal.account.avatar.url, class: 'report-notes__item__avatar'
+
+    .report-notes__item__header
+      %span.username
+        = link_to @appeal.account.username, can?(:show, @appeal.account) ? admin_account_path(@appeal.account_id) : short_account_url(@appeal.account)
+      %time.formatted{ datetime: @appeal.created_at.iso8601, title: @appeal.created_at }
+        = l @appeal.created_at.to_date
+
+    .report-notes__item__content
+      = simple_format(h(@appeal.text))
+
+- unless @strike.overruled?
+  .strike-actions
+    = link_to t('disputes.strikes.reject_appeal'), reject_admin_disputes_appeal_path(@appeal), method: :post, class: 'button button--destructive' if can?(:reject, @appeal)
+    = link_to t('disputes.strikes.approve_appeal'), approve_admin_disputes_appeal_path(@appeal), method: :post, class: 'button' if can?(:approve, @appeal)
+
+- if @strike.status_ids.present? && !@strike.status_ids.empty?
+  %dialog{ closedby: 'any', 'data-modal-id': dom_id(@strike, 'modal') }
+    %h3= t('user_mailer.warning.statuses')
+    .strike-statuses
+      = render partial: 'admin/shared/status', collection: @strike.statuses.includes(:application, :media_attachments), locals: { show_author: true }

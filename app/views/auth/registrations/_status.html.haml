@@ -22,7 +22,7 @@
   - else
     %span.positive-hint= t('auth.status.functional')
 
-= render partial: 'account_warning', collection: strikes
+= render partial: 'shared/account_warning', collection: strikes
 
 - if user.account.strikes.exists?
   %hr.spacer/

@@ -717,6 +717,86 @@ body,
   }
 }
 
+.strike-actions {
+  display: flex;
+  flex-flow: wrap;
+  gap: 5px;
+  justify-content: flex-end;
+  margin-bottom: 20px;
+}
+
+.strike-report {
+  margin-top: 45px;
+  margin-bottom: 20px;
+
+  &__heading {
+    display: flex;
+    flex-flow: wrap;
+    gap: 5px;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  p {
+    margin-bottom: 20px;
+    unicode-bidi: plaintext;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    strong {
+      font-weight: 700;
+    }
+  }
+
+  &__rules {
+    list-style: disc;
+    padding-inline-start: 15px;
+    margin-bottom: 20px;
+    color: $darker-text-color;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    &__text {
+      color: $primary-text-color;
+    }
+  }
+}
+
+.strike-statuses {
+  .status__card {
+    // background: none;
+    margin-bottom: 15px;
+  }
+}
+
+dialog {
+  background: var(--background-color);
+  color: $darker-text-color;
+  min-width: 50vw;
+  min-height: 50vh;
+  max-height: 90vh;
+  max-width: 90vw;
+  border: 1px solid var(--background-border-color);
+  border-radius: 4px;
+  padding: 15px 30px;
+
+  &:focus-visible {
+    outline: none;
+  }
+
+  &::backdrop {
+    background-color: rgba(0, 0, 0, 40%);
+  }
+
+  .strike-statuses {
+    max-width: 50vw;
+  }
+}
+
 .strike-entry {
   display: block;
   line-height: 20px;
@@ -730,6 +810,24 @@ body,
   color: $darker-text-color;
   font-size: 14px;
   margin-bottom: 15px;
+
+  // Hover effect for strike-entry rows:
+  &:is(a) {
+    &:hover,
+    &:focus,
+    &:active {
+      background: $ui-base-color;
+    }
+  }
+
+  a:not(.button) {
+    color: $highlight-text-color;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
 
   &__avatar {
     position: absolute;
@@ -745,16 +843,47 @@ body,
 
   &__title {
     word-wrap: break-word;
+
+    strong {
+      font-weight: 500;
+    }
   }
 
   &__timestamp {
     color: $dark-text-color;
   }
 
-  &:hover,
-  &:focus,
-  &:active {
-    background: $ui-base-color;
+  &__body {
+    margin-top: 20px;
+    color: $secondary-text-color;
+
+    p {
+      margin-bottom: 20px;
+      unicode-bidi: plaintext;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+
+      strong {
+        font-weight: 700;
+      }
+    }
+
+    &__rules {
+      list-style: disc;
+      padding-inline-start: 15px;
+      margin-bottom: 20px;
+      color: $darker-text-color;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+
+      &__text {
+        color: $primary-text-color;
+      }
+    }
   }
 }
 
